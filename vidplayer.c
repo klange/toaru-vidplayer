@@ -89,6 +89,7 @@ int decode_frames(int s, AVFormatContext * format_ctx, AVCodecContext * codec_ct
 
 					flip(ctx);
 					yutani_flip(yctx, wina);
+					syscall_yield();
 
 					fflush(stdout);
 				}
