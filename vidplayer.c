@@ -6,6 +6,7 @@ Prototype video "player" with libav.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -57,21 +58,31 @@ int decode_frames(int s, AVFormatContext * format_ctx, AVCodecContext * codec_ct
 	int dst_linesize[4];
 	av_image_alloc(dst_data, dst_linesize, w, h, AV_PIX_FMT_RGB32, 1);
 
-	fprintf(stderr, "time_base = [%d/%d]\n", format_ctx->streams[s]->time_base.num, format_ctx->streams[s]->time_base.den);
-
+	double tmp = (double)format_ctx->streams[s]->time_base.num / (double)format_ctx->streams[s]->time_base.den * 1000000;
 
 	int i = 0;
 	while (1) {
+		struct timeval tv;
+		int64_t start_time = 0;
+		gettimeofday(&tv, NULL);
+		start_time = tv.tv_sec * 1000000 + tv.tv_usec;
+
 		while (av_read_frame(format_ctx, &packet) >= 0) {
 			if (packet.stream_index == s) {
 				avcodec_decode_video2(codec_ctx, frame, &framedone, &packet);
 
 				if (framedone) {
 					i++;
-					printf("\rFrame [%d] pts=%lld", frame->coded_picture_number, frame->pts);
+					printf("\rFrame [%d] pts=%lld base=%d/%d", frame->coded_picture_number, packet.pts, format_ctx->streams[s]->time_base.num, format_ctx->streams[s]->time_base.den);
 					sws_scale(swctx, (const uint8_t * const *)frame->data, frame->linesize, 0, frame->height, dst_data, dst_linesize);
 
 					memcpy(ctx->backbuffer, dst_data[0], w * h * 4);
+					struct timeval tv;
+					int64_t new_time = 0;
+					do {
+						gettimeofday(&tv, NULL);
+						new_time = tv.tv_sec * 1000000 + tv.tv_usec;
+					} while (new_time - start_time < packet.pts * tmp);
 
 					flip(ctx);
 					yutani_flip(yctx, wina);
