@@ -1,5 +1,5 @@
 CC = i686-pc-toaru-gcc
-CFLAGS = -std=c99
+CFLAGS = -std=c99 -g
 LIBS = `pkg-config --libs libavcodec libavutil libavformat libswscale` -ltoaru -lpng -lz -lm
 
 .PHONY: all clean install

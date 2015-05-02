@@ -30,7 +30,6 @@ int decode_frames(int s, AVFormatContext * format_ctx, AVCodecContext * codec_ct
 
 	struct SwsContext * swctx;
 
-	int linesize[1] = { 4 * frame->width };
 	frame = av_frame_alloc();
 
 	if (!frame) {
@@ -77,12 +76,16 @@ int decode_frames(int s, AVFormatContext * format_ctx, AVCodecContext * codec_ct
 					sws_scale(swctx, (const uint8_t * const *)frame->data, frame->linesize, 0, frame->height, dst_data, dst_linesize);
 
 					memcpy(ctx->backbuffer, dst_data[0], w * h * 4);
-					struct timeval tv;
 					int64_t new_time = 0;
-					do {
+					gettimeofday(&tv, NULL);
+					new_time = tv.tv_sec * 1000000 + tv.tv_usec;
+					while (new_time - start_time < packet.pts * tmp) {
+						if (packet.pts * tmp - (new_time - start_time) > 2000) {
+							syscall_yield();
+						}
 						gettimeofday(&tv, NULL);
 						new_time = tv.tv_sec * 1000000 + tv.tv_usec;
-					} while (new_time - start_time < packet.pts * tmp);
+					}
 
 					flip(ctx);
 					yutani_flip(yctx, wina);
