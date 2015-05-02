@@ -72,15 +72,20 @@ int decode_frames(int s, AVFormatContext * format_ctx, AVCodecContext * codec_ct
 
 				if (framedone) {
 					i++;
-					printf("\rFrame [%d] pts=%lld base=%d/%d", frame->coded_picture_number, packet.pts, format_ctx->streams[s]->time_base.num, format_ctx->streams[s]->time_base.den);
+					printf("\rFrame [%lld]", frame->coded_picture_number);
+					printf(" pts: %lld    ", frame->pkt_pts);
+					fflush(stdout);
+
+					if (frame->pkt_pts == 0) continue;
+
 					sws_scale(swctx, (const uint8_t * const *)frame->data, frame->linesize, 0, frame->height, dst_data, dst_linesize);
 
 					memcpy(ctx->backbuffer, dst_data[0], w * h * 4);
 					int64_t new_time = 0;
 					gettimeofday(&tv, NULL);
 					new_time = tv.tv_sec * 1000000 + tv.tv_usec;
-					while (new_time - start_time < packet.pts * tmp) {
-						if (packet.pts * tmp - (new_time - start_time) > 2000) {
+					while (new_time - start_time < frame->pkt_pts * tmp) {
+						if (frame->pkt_pts * tmp - (new_time - start_time) > 2000) {
 							syscall_yield();
 						}
 						gettimeofday(&tv, NULL);
@@ -90,8 +95,6 @@ int decode_frames(int s, AVFormatContext * format_ctx, AVCodecContext * codec_ct
 					flip(ctx);
 					yutani_flip(yctx, wina);
 					syscall_yield();
-
-					fflush(stdout);
 				}
 			}
 			av_free_packet(&packet);
